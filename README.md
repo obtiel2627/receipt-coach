@@ -2,7 +2,7 @@
 
 > 영수증 사진 한 장으로 기록하고, AI가 소비를 분석해 절약 방법까지 코칭해주는 가계부 서비스
 
-![status](https://img.shields.io/badge/status-planning-yellow)
+![status](https://img.shields.io/badge/status-MVP%20완료-brightgreen)
 
 ## 📌 프로젝트 개요
 
@@ -66,9 +66,12 @@ flowchart LR
 |---|---|
 | Frontend | React (Vite), Chart.js |
 | Backend | Python, FastAPI |
-| AI | 멀티모달 LLM API (GPT-4o mini / Gemini Flash) |
-| Database | SQLite (개발), PostgreSQL (배포) |
-| 배포 | Vercel, Render |
+| AI | Google Gemini API (gemini-3.5-flash, 멀티모달) |
+| 데이터 저장 | 브라우저 localStorage (지출 데이터는 사용자 기기에만 저장) |
+| 배포 | Vercel (정적 프론트엔드 + Python 서버리스 함수) |
+
+> 계획 단계에서는 SQLite/PostgreSQL + Render를 쓰려 했지만, 회원가입 없이 바로 쓸 수 있고 지출 데이터가 서버에 남지 않도록
+> **기기 저장 방식 + Vercel 단일 배포**로 바꿨습니다. 서버는 AI 호출만 담당하는 무상태(stateless) API입니다.
 
 ## 📅 개발 일정
 
@@ -83,22 +86,62 @@ flowchart LR
 | 11/10 ~ 11/16 | 배포, 테스트, 발표 준비 |
 | 11/17 | 🎤 최종 발표 |
 
-## 📁 폴더 구조 (예정)
+## 📁 폴더 구조
 
 ```
 receipt-coach/
-├── frontend/      # React 앱
-├── backend/       # FastAPI 서버
-│   ├── api/
-│   ├── ai/        # 프롬프트, LLM 호출
-│   └── db/
-├── docs/          # 설계 문서, 화면 설계
-└── README.md
+├── frontend/              # React 앱 (Vite)
+│   └── src/
+│       ├── App.jsx        # 탭 구성 (홈·기록·내역·리포트·AI 채팅)
+│       ├── screens/       # 화면별 컴포넌트
+│       ├── stats.js       # 통계 계산 (금액 계산은 모두 코드가 담당)
+│       ├── storage.js     # localStorage 저장, Few-shot용 분류 수정 기록
+│       └── api.js         # 백엔드 호출, 업로드 전 이미지 압축
+├── backend/               # FastAPI 서버
+│   ├── main.py            # /api/receipt, /api/report, /api/chat
+│   ├── tools.py           # AI 채팅용 Function Calling 함수
+│   └── ai/
+│       ├── gemini.py      # Gemini REST API 호출
+│       └── prompts.py     # 프롬프트, JSON 스키마
+├── api/index.py           # Vercel 서버리스 진입점
+├── vercel.json
+└── requirements.txt
 ```
+
+## 🔌 API
+
+| Method | Path | 설명 |
+|---|---|---|
+| GET | `/api/health` | 서버 상태, AI 연결 여부 |
+| POST | `/api/receipt` | 영수증 이미지 → 구조화 JSON + 합계 검증 결과 |
+| POST | `/api/report` | 월간 통계 → AI 리포트·절약 코칭 |
+| POST | `/api/chat` | 자연어 질문 → Function Calling으로 지출 조회 후 답변 |
+
+`GEMINI_API_KEY`가 없으면 **데모 모드**로 동작합니다 (예시 영수증·규칙 기반 리포트). 발표나 시연 때 키 없이도 전체 흐름을 보여줄 수 있습니다.
 
 ## 🚀 실행 방법
 
-> 개발 진행 후 업데이트 예정
+### 로컬 실행
+
+```bash
+# 1) 백엔드
+pip install -r requirements.txt
+export GEMINI_API_KEY=발급받은_키   # 없으면 데모 모드
+uvicorn backend.main:app --reload --port 8000
+
+# 2) 프론트엔드 (새 터미널)
+cd frontend
+npm install
+npm run dev        # http://localhost:5173 (API는 8000번으로 프록시)
+```
+
+### 배포 (Vercel)
+
+1. [Vercel](https://vercel.com)에서 GitHub 저장소를 Import
+2. Settings → Environment Variables에 `GEMINI_API_KEY`, `GEMINI_MODEL=gemini-3.5-flash` 추가
+3. Deploy → 발급된 주소로 휴대폰에서 접속해 사용
+
+API 키는 [Google AI Studio](https://aistudio.google.com/apikey)에서 무료로 발급할 수 있습니다.
 
 ## 👤 개발자
 
